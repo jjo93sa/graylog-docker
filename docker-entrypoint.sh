@@ -84,22 +84,24 @@ if [[ ! -z "${NOMAD_ALLOC_INDEX}" ]]; then
   fi
 fi
 
-# Merge plugin dirs to allow mounting of /plugin as a volume
-export GRAYLOG_PLUGIN_DIR=/usr/share/graylog/plugins-merged
-rm -f /usr/share/graylog/plugins-merged/*
-find /usr/share/graylog/plugins-default/ -type f -exec cp {} /usr/share/graylog/plugins-merged/ \;
-find /usr/share/graylog/plugin/ -type f -exec cp {} /usr/share/graylog/plugins-merged/ \;
 
 
 setup() {
+  cp -rn ${GRAYLOG_HOME}/bootstrap/. "${GRAYLOG_HOME}"
+  # Merge plugin dirs to allow mounting of /plugin as a volume
+  export GRAYLOG_PLUGIN_DIR=/usr/share/graylog/plugins-merged
+  rm -f /usr/share/graylog/plugins-merged/*
+  find /usr/share/graylog/plugins-default/ -type f -exec cp {} /usr/share/graylog/plugins-merged/ \;
+  find /usr/share/graylog/plugin/ -type f -exec cp {} /usr/share/graylog/plugins-merged/ \;
+
   # Create data directories
   for d in journal log plugin config contentpacks
   do
     dir=${GRAYLOG_HOME}/data/${d}
     [[ -d "${dir}" ]] || mkdir -p "${dir}"
 
-    if [[ "$(stat --format='%U:%G' $dir)" != 'graylog:graylog' ]] && [[ -w "$dir" ]]; then
-      chown -R graylog:graylog "$dir" || echo "Warning can not change owner to graylog:graylog"
+    if [[ "$(stat --format='%u:%g' $dir)" != '${GRAYLOG_UID}:${GRAYLOG_GID}' ]] && [[ -w "$dir" ]]; then
+      chown -R ${GRAYLOG_UID} "$dir" || echo "Warning can not change owner to graylog:graylog"
     fi
   done
 }

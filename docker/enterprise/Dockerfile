@@ -97,13 +97,14 @@ ARG GRAYLOG_VERSION
 ARG BUILD_DATE
 ARG GRAYLOG_HOME=/usr/share/graylog
 ARG GRAYLOG_USER=graylog
-ARG GRAYLOG_UID=1100
+ARG GRAYLOG_UID=1024
 ARG GRAYLOG_GROUP=graylog
 ARG GRAYLOG_GID=1100
 ARG JAVA_VERSION_MAJOR
+ARG GEOLITE2=GeoLite2-City_20210713
 
-COPY --from=graylog-downloader /opt/graylog ${GRAYLOG_HOME}
-COPY config ${GRAYLOG_HOME}/data/config
+COPY --from=graylog-downloader /opt/graylog ${GRAYLOG_HOME}/bootstrap
+COPY config ${GRAYLOG_HOME}/bootstrap/data/config
 
 WORKDIR ${GRAYLOG_HOME}
 
@@ -158,9 +159,25 @@ RUN \
     /usr/share/X11 \
     /usr/share/doc/* 2> /dev/null
 
-RUN mv ${GRAYLOG_HOME}/plugin ${GRAYLOG_HOME}/plugins-default
-RUN install -d -o "${GRAYLOG_USER}" -g "${GRAYLOG_GROUP}" -m 0755 ${GRAYLOG_HOME}/plugins-merged
-RUN install -d -o "${GRAYLOG_USER}" -g "${GRAYLOG_GROUP}" -m 0755 ${GRAYLOG_HOME}/plugin
+RUN mv ${GRAYLOG_HOME}/bootstrap/plugin ${GRAYLOG_HOME}/bootstrap/plugins-default
+RUN install -d -o "${GRAYLOG_USER}" -g "${GRAYLOG_GROUP}" -m 0755 ${GRAYLOG_HOME}/bootstrap/plugins-merged
+RUN install -d -o "${GRAYLOG_USER}" -g "${GRAYLOG_GROUP}" -m 0755 ${GRAYLOG_HOME}/bootstrap/plugin
+
+ENV GEOLITE2=${GEOLITE2}
+
+RUN mkdir -p  /etc/graylog
+RUN mkdir -p /usr/share/graylog/scripts
+
+ADD assets/${GEOLITE2}.tar.gz /etc/graylog/GeoLite2-City
+ADD assets/exponents.csv /etc/graylog/exponents.csv
+ADD assets/pushover /usr/share/graylog/scripts
+
+RUN mv /etc/graylog/GeoLite2-City/${GEOLITE2}/GeoLite2-City.mmdb /etc/graylog/GeoLite2-City.mmdb
+
+RUN chmod 0755 /usr/share/graylog/scripts/pushover
+
+RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /etc/graylog
+RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /usr/share/graylog/scripts
 
 COPY docker-entrypoint.sh /
 COPY health_check.sh /

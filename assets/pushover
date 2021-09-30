@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# Title: pushover
+#
+# Description:
+#   Send messages using the Pushover service, pushover.net.
+#
+# Dependencies:
+#   An account with pushover.net is required to use this script and their
+#   service. With your account, you must create two tokens: a User Token and an
+#   Application Token. No default values are provided and this script WILL
+#   exit if they are not set.
+#
+# Credits:  None
+#
+# Usage:
+#   You have two options:
+#
+#   (1) Source this script and either (a) call pushover() with your message as
+#   first argument or (b) pipe the message to the pushover function, for example
+#
+#     echo "my message" | pushover
+#
+#   (2) Call this script directly with a message as first argument.
+#
+#   Either way, two environment variables must exist and be non-empty:
+#
+#     PO_USER_TOKEN - the token used to identify the Pushover user;
+#     PO_APP_TOKEN  - the token used to distinguish the application.
+#
+#   If these are not set, the script exits and no push message is sent.
+#
+# Maintainer:
+#    James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repository root
+#
+
+#PO_USER_TOKEN
+#PO_APP_TOKEN
+
+#export NOTIFICATION_SCRIPT=$(basename $0)
+
+function init()
+{
+   local ENVVARS="PO_USER_TOKEN PO_APP_TOKEN"
+
+   for a in $ENVVARS; do
+       sed -i -e "s/#$a/$(env | grep $a)/" $(basename $0)
+   done
+}
+
+# This function takes a message as the first argument, or from a pipe, and sends
+# it via Pushover.
+# Parameters:
+# -- [$1 - message to send]
+function pushover()
+{
+    # Ensure we have the tokens needed for Pushover operation:
+    : "${PO_USER_TOKEN:?PO_USER_TOKEN env var must be set to use PushOver service}"
+    : "${PO_APP_TOKEN:?PO_APP_TOKEN env var must be set to use PushOver service}"
+
+    # Either msg text supplied by pipe, or as first parameter
+    local TEXT=${@:-$(</dev/stdin)}
+
+    # If we still haven't got any text, let's just send the PID
+    if [ -z "$TEXT" ]
+    then
+        TEXT="Message from PID: $$"
+    fi
+
+    # Removed 2018-09-20: Pushover prepends date-time stamp so we don't need to
+    #local USER_MESSAGE="message=$(date -u "+%Y-%m-%d %H:%M:%S"): $TEXT"
+    local USER_MESSAGE="message=${TEXT//\"/}"
+
+    local PUSHOVER_RESPONSE=$(curl -s --form-string "token=$PO_APP_TOKEN" \
+        --form-string "user=$PO_USER_TOKEN" \
+        --form-string "$USER_MESSAGE" \
+        https://api.pushover.net/1/messages.json)
+
+    CURL_EXIT_STATUS=$?
+
+    echo "Curl exited with $CURL_EXIT_STATUS; Pushover response $PUSHOVER_RESPONSE"
+}
+
+# A smart bit of trickery to see if this script is running as exe or as source
+if [[ "$0" == "$BASH_SOURCE" ]]; then
+    # we haven't been sourced, so run as executable
+
+    if declare -f -- "$1" &> /dev/null
+    then
+        # We've been called like this: path/script function <params>
+        # AND that function name exists in this script file.
+        "$@"
+    else
+        # We've been called without a function name, so execute main
+        pushover "$@"
+        exit $?
+    fi
+fi
