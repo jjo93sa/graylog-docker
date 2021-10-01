@@ -165,19 +165,17 @@ RUN install -d -o "${GRAYLOG_USER}" -g "${GRAYLOG_GROUP}" -m 0755 ${GRAYLOG_HOME
 
 ENV GEOLITE2=${GEOLITE2}
 
-RUN mkdir -p  /etc/graylog
-RUN mkdir -p /usr/share/graylog/scripts
+#RUN mkdir -p  /etc/graylog
 
-ADD assets/${GEOLITE2}.tar.gz /etc/graylog/GeoLite2-City
-ADD assets/exponents.csv /etc/graylog/exponents.csv
-ADD assets/pushover /usr/share/graylog/scripts
+ADD --chown=${GRAYLOG_UID}:${GRAYLOG_GID} assets/${GEOLITE2}.tar.gz /etc/graylog/GeoLite2-City
+ADD --chown=${GRAYLOG_UID}:${GRAYLOG_GID} assets/exponents.csv /etc/graylog/exponents.csv
+ADD --chown=${GRAYLOG_UID}:${GRAYLOG_GID} assets/pushover ${GRAYLOG_HOME}/bootstrap/data/scripts
 
 RUN mv /etc/graylog/GeoLite2-City/${GEOLITE2}/GeoLite2-City.mmdb /etc/graylog/GeoLite2-City.mmdb
 
-RUN chmod 0755 /usr/share/graylog/scripts/pushover
+RUN chmod 0755 ${GRAYLOG_HOME}/bootstrap/data/scripts/pushover
 
-RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /etc/graylog
-RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /usr/share/graylog/scripts
+#RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /etc/graylog
 
 COPY docker-entrypoint.sh /
 COPY health_check.sh /
